@@ -40,7 +40,7 @@ function initSocketServer(httpServer){
         // console.log("New socket connection :",socket.id)
 
         socket.on("ai-message",async(messagePayLoad)=>{
-            console.log(messagePayLoad)
+            // console.log(messagePayLoad)
 
             await messageModel.create({
                 chat:messagePayLoad.chat,
@@ -49,7 +49,17 @@ function initSocketServer(httpServer){
                 role:"user"
             })
 
-            const response = await aiService.generateResponse(messagePayLoad.content)
+            const chatHistory = await messageModel.find({
+                chat:messagePayLoad.chat
+            })
+
+
+            const response = await aiService.generateResponse(chatHistory.map(item=>{
+                return {
+                    role:item.role,
+                    parts: [{text:item.content}]
+                }
+            }))
 
             await messageModel.create({
                 chat:messagePayLoad.chat,
