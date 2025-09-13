@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken')
 const userModel = require('../models/user.model')
 const aiService = require('../services/ai.service')
 const messageModel = require('../models/message.model')
+const {createMemory, queryMemory} = require("../services/vector.service")
 
 function initSocketServer(httpServer){
 
@@ -42,16 +43,38 @@ function initSocketServer(httpServer){
         socket.on("ai-message",async(messagePayLoad)=>{
             // console.log(messagePayLoad)
 
-            await messageModel.create({
+            /* Message Payload = {chat:chadId, content: message text} */
+
+            const message = await messageModel.create({
                 chat:messagePayLoad.chat,
                 user:socket.user._id,
                 content:messagePayLoad.content,
                 role:"user"
             })
 
-            const chatHistory = await messageModel.find({
-                chat:messagePayLoad.chat
+            const vectors = await aiService.generateVector(messagePayLoad.content)
+            // console.log("vectors generated : ",vectors)
+
+            await createMemory({
+                vectors,
+                messageId:message._id,
+                metadata:{
+                    chat:messagePayLoad.chat,
+                    user:socket.user._id,
+                    text:messagePayLoad.content
+                }
             })
+
+            const memory = await queryMemory({
+                queryVector:vectors,
+                limit:3,
+                metadata:{}
+            })
+            console.log(memory)
+
+            const chatHistory = (await messageModel.find({
+                chat:messagePayLoad.chat
+            }).sort({createdAt : -1}).limit(20).lean()).reverse()    // by this our short term memory can remember only last 20 messages
 
 
             const response = await aiService.generateResponse(chatHistory.map(item=>{
@@ -61,11 +84,23 @@ function initSocketServer(httpServer){
                 }
             }))
 
-            await messageModel.create({
+           const responseMessage =  await messageModel.create({
                 chat:messagePayLoad.chat,
                 user:socket.user._id,
                 content:response,
                 role:"model"
+            })
+
+            const responseVector = await aiService.generateVector(response)
+
+            await createMemory({
+                vectors: responseVector,
+                messageId:responseMessage._id,
+                metadata:{
+                    chat:messagePayLoad.chat,
+                    user:socket.user._id,
+                    text:response
+                }
             })
 
             socket.emit("ai-response",{
