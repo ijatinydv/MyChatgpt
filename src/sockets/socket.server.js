@@ -4,7 +4,8 @@ const jwt = require('jsonwebtoken')
 const userModel = require('../models/user.model')
 const aiService = require('../services/ai.service')
 const messageModel = require('../models/message.model')
-const {createMemory, queryMemory} = require("../services/vector.service")
+const {createMemory, queryMemory} = require("../services/vector.service");
+const { text } = require("express");
 
 function initSocketServer(httpServer){
 
@@ -70,19 +71,33 @@ function initSocketServer(httpServer){
                 limit:3,
                 metadata:{}
             })
-            console.log(memory)
+            // console.log(memory)
 
             const chatHistory = (await messageModel.find({
                 chat:messagePayLoad.chat
             }).sort({createdAt : -1}).limit(20).lean()).reverse()    // by this our short term memory can remember only last 20 messages
 
-
-            const response = await aiService.generateResponse(chatHistory.map(item=>{
+            const stm = chatHistory.map(item=>{
                 return {
                     role:item.role,
                     parts: [{text:item.content}]
                 }
-            }))
+            })
+
+            const ltm = [{
+                role:"system",
+                parts:[{
+                    text: 
+                    `
+                    these are some previous messeges from the chat, use them to generate a response
+                    ${memory.map(items=>{items.metadata.text}).join("\n")}
+                    `
+                }]
+            }]
+
+            console.log(ltm,stm)
+
+            const response = await aiService.generateResponse([...ltm, ...stm])
 
            const responseMessage =  await messageModel.create({
                 chat:messagePayLoad.chat,
