@@ -16,7 +16,8 @@ async function generateVector(content) {
         model:'gemini-embedding-001',
         contents:content,
         config:{
-            outputDimensionality:768
+            temperature:0.7,   // (0-2) more value more creative answer will the model give
+            systemInstruction:``
         }
     })
     return response.embeddings[0].values
