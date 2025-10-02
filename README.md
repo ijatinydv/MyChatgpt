@@ -288,8 +288,6 @@ Built with **Node.js + Express** following MVC pattern for scalability and maint
   - `JWT_SECRET`: Secret for JWT signing
   - `OPENAI_API_KEY`: API key for AI integration
   - `PORT`: Server port
-- **Frontend:**
-  - (Optional) API base URL if needed
 
 ---
 
@@ -320,26 +318,6 @@ This project is licensed under the MIT License.
 - **Best Practices** — Follow industry standards
 - **Well-Documented** — Easy to understand and extend
 - **ChatGPT Clone** — ~90% feature parity with ChatGPT interface
-
----
-
-## 🚀 Roadmap
-
-Future enhancements planned:
-- [ ] Code syntax highlighting in messages
-- [ ] File upload support
-- [ ] Voice input/output
-- [ ] Multi-language support
-- [ ] Export conversation as PDF/Markdown
-- [ ] Conversation search functionality
-- [ ] User preferences and settings
-- [ ] Rate limiting and usage analytics
-
----
-
-## 📸 Screenshots
-
-*Add screenshots of your application here*
 
 ---
 
