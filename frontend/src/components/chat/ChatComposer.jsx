@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useLayoutEffect } from 'react';
 import './ChatComposer.css';
 
 // NOTE: Public API (props) kept identical for drop-in upgrade
-const ChatComposer = ({ input, setInput, onSend, isSending }) => {
+const ChatComposer = ({ input, setInput, onSend, isSending, disabled = false }) => {
   const textareaRef = useRef(null);
 
   // Auto-grow textarea height up to max-height
@@ -21,13 +21,13 @@ const ChatComposer = ({ input, setInput, onSend, isSending }) => {
   }, [onSend, input]);
 
   return (
-    <form className="composer" onSubmit={e => { e.preventDefault(); if (input.trim()) onSend(); }}>
+    <form className="composer" onSubmit={e => { e.preventDefault(); if (input.trim() && !disabled) onSend(); }}>
       <div className="composer-surface" data-state={isSending ? 'sending' : undefined}>
         <div className="composer-field">
           <textarea
             ref={textareaRef}
             className="composer-input"
-            placeholder="Message ChatGPT…"
+            placeholder={disabled ? "Please select or create a chat first..." : "Message ChatGPT…"}
             aria-label="Message"
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -35,13 +35,14 @@ const ChatComposer = ({ input, setInput, onSend, isSending }) => {
             rows={1}
             spellCheck
             autoComplete="off"
+            disabled={disabled}
           />
           <div className="composer-hint" aria-hidden="true">Enter ↵ to send • Shift+Enter = newline</div>
         </div>
         <button
           type="submit"
             className="send-btn icon-btn"
-            disabled={!input.trim() || isSending}
+            disabled={!input.trim() || isSending || disabled}
             aria-label={isSending ? 'Sending…' : 'Send message'}
         >
           <span className="send-icon" aria-hidden="true">

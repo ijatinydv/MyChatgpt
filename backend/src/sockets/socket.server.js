@@ -9,7 +9,16 @@ const { text, response } = require("express");
 
 function initSocketServer(httpServer){
 
-    const io = new Server(httpServer,{})
+    const io = new Server(httpServer,{
+        cors: {
+            origin: 'http://localhost:5173',
+            methods: ["GET", "POST"],
+            credentials: true,
+            allowedHeaders: ["Content-Type"]
+        }
+    })
+
+    console.log("Socket.IO server initialized with CORS for http://localhost:5173");
 
     // socketio middlewares
 
@@ -119,7 +128,7 @@ function initSocketServer(httpServer){
                     text: 
                     `
                     these are some previous messeges from the chat, use them to generate a response
-                    ${memory.map(items=>{items.metadata.text}).join("\n")}
+                    ${memory.map(item => item.metadata.text).join("\n")}
                     `
                 }]
             }]

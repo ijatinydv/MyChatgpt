@@ -18,28 +18,23 @@ const Register = () => {
         setSubmitting(true);
         console.log(form);
 
-        axios.post("http://localhost:3000/api/auth/register", {
-            email: form.email,
-            fullName: {
-                firstName: form.firstname,
-                lastName: form.lastname
-            },
-            password: form.password
-        }, {
-            withCredentials: true
-        }).then((res) => {
+        try {
+            const res = await axios.post("http://localhost:3000/api/auth/register", {
+                email: form.email,
+                fullName: {
+                    firstName: form.firstname,
+                    lastName: form.lastname
+                },
+                password: form.password
+            }, {
+                withCredentials: true
+            });
+            
             console.log(res);
             navigate("/");
-        }).catch((err) => {
-            console.error(err);
-            alert('Registration failed (placeholder)');
-        })
-
-        try {
-            // Placeholder: integrate real registration logic / API call.
-
         } catch (err) {
             console.error(err);
+            alert('Registration failed: ' + (err.response?.data?.message || 'Please try again'));
         } finally {
             setSubmitting(false);
         }
