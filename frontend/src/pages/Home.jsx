@@ -27,9 +27,14 @@ const Home = () => {
   const [ messages, setMessages ] = useState([]);
   const [ isLoading, setIsLoading ] = useState(true);
 
+  // Monitor chats changes
+  useEffect(() => {
+    console.log("Chats state changed:", chats);
+  }, [chats]);
+
   const handleNewChat = async () => {
     try {
-      // Create chat instantly with default title (like ChatGPT)
+      // Create chat instantly with default title
       const timestamp = new Date().toLocaleString('en-US', { 
         month: 'short', 
         day: 'numeric', 
@@ -68,7 +73,6 @@ const Home = () => {
         const chatsList = response.data.chats.reverse();
         dispatch(setChats(chatsList));
         
-        // Auto-select first chat if available and no active chat
         if (chatsList.length > 0 && !activeChatId) {
           dispatch(selectChat(chatsList[0]._id));
           getMessages(chatsList[0]._id);
@@ -113,7 +117,7 @@ const Home = () => {
     };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch]);
+  }, []); // Only run once on mount
 
   const sendMessage = async () => {
 
@@ -122,11 +126,6 @@ const Home = () => {
     
     if (!trimmed) {
       console.log("Empty message, not sending");
-      return;
-    }
-    
-    if (!activeChatId) {
-      alert("Please create or select a chat first!");
       return;
     }
     
@@ -140,6 +139,40 @@ const Home = () => {
       return;
     }
     
+    // Auto-create chat if none exists
+    let chatId = activeChatId;
+    if (!chatId) {
+      try {
+        console.log("No active chat, creating new chat...");
+        const response = await axios.post("http://localhost:3000/api/chat", {
+          title: trimmed.length > 50 ? trimmed.substring(0, 50) + '...' : trimmed
+        }, {
+          withCredentials: true
+        });
+        
+        const newChat = response.data.chat;
+        chatId = newChat._id;
+        
+        console.log("New chat created:", newChat);
+        
+        // Update Redux store
+        dispatch(startNewChat(newChat));
+        
+        console.log("After dispatch, chats from selector:", chats);
+        
+        setMessages([]);
+      } catch (error) {
+        console.error('Error creating chat:', error);
+        if (error.response?.status === 401) {
+          alert('Please login first');
+          window.location.href = '/login';
+        } else {
+          alert('Failed to create chat. Please try again.');
+        }
+        return;
+      }
+    }
+    
     dispatch(sendingStarted());
 
     const newMessages = [ ...messages, {
@@ -148,38 +181,32 @@ const Home = () => {
     } ];
 
     console.log("New messages array:", newMessages);
-    console.log("Active chat ID:", activeChatId);
+    console.log("Using chat ID:", chatId);
     console.log("Socket connected:", socket?.connected);
 
     setMessages(newMessages);
     dispatch(setInput(''));
 
-    // Auto-update chat title with first message (ChatGPT-like behavior)
-    if (messages.length === 0) {
+    // Auto-update chat title with first message
+    if (messages.length === 0 && activeChatId) {
       const autoTitle = trimmed.length > 50 
         ? trimmed.substring(0, 50) + '...' 
         : trimmed;
       
       try {
-        await axios.patch(`http://localhost:3000/api/chat/${activeChatId}`, {
+        await axios.patch(`http://localhost:3000/api/chat/${chatId}`, {
           title: autoTitle
         }, {
           withCredentials: true
         });
         
-        // Update chat title in Redux store
-        dispatch(setChats(chats.map(chat => 
-          chat._id === activeChatId 
-            ? { ...chat, title: autoTitle }
-            : chat
-        )));
       } catch (error) {
         console.error('Error updating chat title:', error);
       }
     }
 
     socket.emit("ai-message", {
-      chat: activeChatId,
+      chat: chatId,
       content: trimmed
     });
     
@@ -282,9 +309,9 @@ return (
         </div>
       ) : !activeChatId ? (
         <div className="chat-welcome" aria-hidden="true">
-          <div className="chip">Early Preview</div>
+          {/* <div className="chip">Early Preview</div> */}
           <h1>Welcome to Our ChatGPT</h1>
-          <p>Create a new chat to get started. Click the "New" button in the sidebar to begin.</p>
+          <p>Start typing below to begin your conversation. A new chat will be created automatically.</p>
         </div>
       ) : messages.length === 0 ? (
         <div className="chat-welcome" aria-hidden="true">
@@ -301,7 +328,7 @@ return (
           setInput={(v) => dispatch(setInput(v))}
           onSend={sendMessage}
           isSending={isSending}
-          disabled={!activeChatId}
+          disabled={false}
         />
     </main>
     {sidebarOpen && (

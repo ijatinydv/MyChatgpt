@@ -21,9 +21,15 @@ const chatSlice = createSlice({
         },
         startNewChat: {
             reducer(state, action) {
+                console.log("startNewChat reducer called with:", action.payload);
+                console.log("Current chats before:", JSON.parse(JSON.stringify(state.chats)));
                 const { _id, title } = action.payload;
-                state.chats.unshift({ _id, title: title || 'New Chat', messages: [] });
+                const newChat = { _id, title: title || 'New Chat', messages: [] };
+                state.chats.unshift(newChat);
                 state.activeChatId = _id;
+                console.log("New chat object:", newChat);
+                console.log("Current chats after:", JSON.parse(JSON.stringify(state.chats)));
+                console.log("Chats length after:", state.chats.length);
             }
         },
         selectChat(state, action) {
