@@ -44,7 +44,7 @@ const Home = () => {
       });
       const title = `New Chat - ${timestamp}`;
 
-      const response = await axios.post("http://localhost:3000/api/chat", {
+      const response = await axios.post("https://mychatgpt-hili.onrender.com/api/chat", {
         title
       }, {
         withCredentials: true
@@ -68,7 +68,7 @@ const Home = () => {
   // Ensure at least one chat exists initially
   useEffect(() => {
 
-    axios.get("http://localhost:3000/api/chat", { withCredentials: true })
+    axios.get("https://mychatgpt-hili.onrender.com/api/chat", { withCredentials: true })
       .then(response => {
         const chatsList = response.data.chats.reverse();
         dispatch(setChats(chatsList));
@@ -87,7 +87,7 @@ const Home = () => {
         setIsLoading(false);
       });
 
-    const tempSocket = io("http://localhost:3000", {
+    const tempSocket = io("https://mychatgpt-hili.onrender.com", {
       withCredentials: true,
     })
 
@@ -144,7 +144,7 @@ const Home = () => {
     if (!chatId) {
       try {
         console.log("No active chat, creating new chat...");
-        const response = await axios.post("http://localhost:3000/api/chat", {
+        const response = await axios.post("https://mychatgpt-hili.onrender.com/api/chat", {
           title: trimmed.length > 50 ? trimmed.substring(0, 50) + '...' : trimmed
         }, {
           withCredentials: true
@@ -194,7 +194,7 @@ const Home = () => {
         : trimmed;
       
       try {
-        await axios.patch(`http://localhost:3000/api/chat/${chatId}`, {
+        await axios.patch(`https://mychatgpt-hili.onrender.com/api/chat/${chatId}`, {
           title: autoTitle
         }, {
           withCredentials: true
@@ -216,7 +216,7 @@ const Home = () => {
   const getMessages = async (chatId) => {
 
    try {
-     const response = await axios.get(`http://localhost:3000/api/chat/messages/${chatId}`, { withCredentials: true })
+     const response = await axios.get(`https://mychatgpt-hili.onrender.com/api/chat/messages/${chatId}`, { withCredentials: true })
 
      console.log("Fetched messages:", response.data.messages);
 
@@ -237,7 +237,7 @@ const Home = () => {
 
   const handleRenameChat = async (chatId, newTitle) => {
     try {
-      await axios.patch(`http://localhost:3000/api/chat/${chatId}`, {
+      await axios.patch(`https://mychatgpt-hili.onrender.com/api/chat/${chatId}`, {
         title: newTitle
       }, {
         withCredentials: true
@@ -257,7 +257,7 @@ const Home = () => {
 
   const handleDeleteChat = async (chatId) => {
     try {
-      await axios.delete(`http://localhost:3000/api/chat/${chatId}`, {
+      await axios.delete(`https://mychatgpt-hili.onrender.com/api/chat/${chatId}`, {
         withCredentials: true
       });
       
