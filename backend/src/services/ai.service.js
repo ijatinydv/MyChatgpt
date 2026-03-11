@@ -25,17 +25,19 @@ function parseRetryAfterSeconds(error) {
 }
 
 function createRateLimitError(error) {
+  const retryAfterSeconds = parseRetryAfterSeconds(error);
   const rateLimitError = new Error(
-    "AI quota exceeded. Please retry after a short delay."
+    `AI service quota or rate limit exceeded. Please retry after ${retryAfterSeconds} seconds.`
   );
   rateLimitError.statusCode = 429;
   rateLimitError.isRateLimitError = true;
-  rateLimitError.retryAfterSeconds = parseRetryAfterSeconds(error);
+  rateLimitError.retryAfterSeconds = retryAfterSeconds;
   return rateLimitError;
 }
 
 function isRateLimitError(error) {
-  if (error?.status === 429 || error?.statusCode === 429 || error?.code === 429) {
+  const code = error?.status || error?.statusCode || error?.code || error?.error?.code;
+  if (code === 429) {
     return true;
   }
 
@@ -97,10 +99,10 @@ async function generateResponse(content) {
   </safety>
 
   <closing-style>
-      End helpful responses with a quick prompt inviting follow-up, e.g.:
+    End helpful responses with a quick prompt inviting follow-up, e.g.:
       "Want me to expand on any step?" or "Shall I show an example?"
- </persona>
- `,
+</persona>
+`,
       }
     });
     return response.text;

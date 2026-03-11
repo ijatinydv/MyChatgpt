@@ -74,7 +74,7 @@ function initSocketServer(httpServer){
  
 
         socket.on("ai-message",async(messagePayLoad)=>{
-              //Message Payload = {chat:chadId, content: message text} 
+              //Message Payload = {chat:chatId, content: message text} 
             const socketRateLimit = checkSocketRateLimit(socket);
             socket.requestTimestamps = socketRateLimit.timestamps;
 
