@@ -3,13 +3,60 @@ const { GoogleGenAI } = require("@google/genai");
 // The client gets the API key from the environment variable `GEMINI_API_KEY`.
 const ai = new GoogleGenAI({});
 
+function parseRetryAfterSeconds(error) {
+  const retryInfo = error?.details?.find(
+    (detail) => detail?.["@type"] === "type.googleapis.com/google.rpc.RetryInfo"
+  );
+
+  const retryDelay = retryInfo?.retryDelay;
+  if (typeof retryDelay === "string") {
+    const match = retryDelay.match(/(\d+(?:\.\d+)?)s/);
+    if (match) {
+      return Math.ceil(Number(match[1]));
+    }
+  }
+
+  const messageRetryMatch = error?.message?.match(/retry in (\d+(?:\.\d+)?)s/i);
+  if (messageRetryMatch) {
+    return Math.ceil(Number(messageRetryMatch[1]));
+  }
+
+  return 10;
+}
+
+function createRateLimitError(error) {
+  const retryAfterSeconds = parseRetryAfterSeconds(error);
+  const rateLimitError = new Error(
+    `AI service quota or rate limit exceeded. Please retry after ${retryAfterSeconds} seconds.`
+  );
+  rateLimitError.statusCode = 429;
+  rateLimitError.isRateLimitError = true;
+  rateLimitError.retryAfterSeconds = retryAfterSeconds;
+  return rateLimitError;
+}
+
+function isRateLimitError(error) {
+  const code = error?.status || error?.statusCode || error?.code || error?.error?.code;
+  if (code === 429) {
+    return true;
+  }
+
+  const message = `${error?.message || ""}`.toLowerCase();
+  return (
+    message.includes('"code":429') ||
+    message.includes("resource_exhausted") ||
+    message.includes("quota exceeded")
+  );
+}
+
 async function generateResponse(content) {
-  const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
-    contents: content,
-    config: {
-        temperature: 0.7, // (0-2) more value more creative answer will the model give
-      systemInstruction: `
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: content,
+      config: {
+          temperature: 0.7, // (0-2) more value more creative answer will the model give
+        systemInstruction: `
             <persona>
   <name>system paad denge</name>
   <summary>
@@ -56,20 +103,33 @@ async function generateResponse(content) {
       "Want me to expand on any step?" or "Shall I show an example?"
 </persona>
 `,
+      }
+    });
+    return response.text;
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      throw createRateLimitError(error);
     }
-  });
-  return response.text;
+    throw error;
+  }
 }
 
 async function generateVector(content) {
-  const response = await ai.models.embedContent({
-    model: "gemini-embedding-001",
-    contents: content,
-    config: {
-      outputDimensionality: 768,
-    },
-  });
-  return response.embeddings[0].values;
+  try {
+    const response = await ai.models.embedContent({
+      model: "gemini-embedding-001",
+      contents: content,
+      config: {
+        outputDimensionality: 768,
+      },
+    });
+    return response.embeddings[0].values;
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      throw createRateLimitError(error);
+    }
+    throw error;
+  }
 }
 
 module.exports = { generateResponse, generateVector };
