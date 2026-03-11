@@ -5,7 +5,28 @@ const userModel = require('../models/user.model')
 const aiService = require('../services/ai.service')
 const messageModel = require('../models/message.model')
 const {createMemory, queryMemory} = require("../services/vector.service");
-const { text, response } = require("express");
+
+const SOCKET_RATE_LIMIT_WINDOW_MS = Number(process.env.SOCKET_RATE_LIMIT_WINDOW_MS || 60_000);
+const SOCKET_RATE_LIMIT_MAX_REQUESTS = Number(process.env.SOCKET_RATE_LIMIT_MAX_REQUESTS || 5);
+
+function checkSocketRateLimit(socket) {
+    const now = Date.now();
+    const timestamps = socket.requestTimestamps || [];
+    const windowStart = now - SOCKET_RATE_LIMIT_WINDOW_MS;
+    const validTimestamps = timestamps.filter((timestamp) => timestamp > windowStart);
+
+    if (validTimestamps.length >= SOCKET_RATE_LIMIT_MAX_REQUESTS) {
+        const retryAfterMs = validTimestamps[0] + SOCKET_RATE_LIMIT_WINDOW_MS - now;
+        return {
+            allowed: false,
+            retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)),
+            timestamps: validTimestamps
+        };
+    }
+
+    validTimestamps.push(now);
+    return { allowed: true, timestamps: validTimestamps };
+}
 
 function initSocketServer(httpServer){
 
@@ -49,10 +70,24 @@ function initSocketServer(httpServer){
     io.on("connection",(socket)=>{
         // console.log("user connected : ",socket.user)
         // console.log("New socket connection :",socket.id)
+        socket.requestTimestamps = [];
  
 
         socket.on("ai-message",async(messagePayLoad)=>{
-             //Message Payload = {chat:chadId, content: message text} 
+              //Message Payload = {chat:chadId, content: message text} 
+            const socketRateLimit = checkSocketRateLimit(socket);
+            socket.requestTimestamps = socketRateLimit.timestamps;
+
+            if (!socketRateLimit.allowed) {
+                socket.emit("ai-error", {
+                    code: "SOCKET_RATE_LIMIT_EXCEEDED",
+                    message: "Too many requests from this socket. Please retry shortly.",
+                    retryAfterSeconds: socketRateLimit.retryAfterSeconds
+                });
+                return;
+            }
+
+            try {
 
             /* const message = await messageModel.create({
                 chat:messagePayLoad.chat,
@@ -170,6 +205,22 @@ function initSocketServer(httpServer){
                     text:response
                 }
             })
+            } catch (error) {
+                if (error?.isRateLimitError || error?.statusCode === 429 || error?.status === 429) {
+                    socket.emit("ai-error", {
+                        code: "AI_RATE_LIMIT_EXCEEDED",
+                        message: error.message || "AI quota exceeded. Please retry after a short delay.",
+                        retryAfterSeconds: error.retryAfterSeconds || 10
+                    });
+                    return;
+                }
+
+                console.error("Socket ai-message error:", error);
+                socket.emit("ai-error", {
+                    code: "AI_MESSAGE_FAILED",
+                    message: "Unable to process your message right now. Please try again."
+                });
+            }
 
         })
 
